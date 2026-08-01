@@ -108,6 +108,11 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@app.route("/api/skills")
+def skills():
+    return jsonify(["Python", "Java", "React", "Node", "SQL", "JavaScript", "HTML", "CSS", "Data Science"])
+
+
 @app.route("/api/jobs")
 def jobs():
     keyword  = request.args.get("keyword",  "").strip()

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: job_find_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DEFAULT_TIMEOUT=20
+      - MAX_WORKERS=6
+      - MAX_RESULTS_PER_SOURCE=50
+      - FUZZY_THRESHOLD=0.82
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    container_name: job_find_frontend
+    ports:
+      - "8000:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html
+    depends_on:
+      - backend
+    restart: unless-stopped

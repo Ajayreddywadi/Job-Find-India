@@ -216,7 +216,7 @@ class TestJobAggregator:
 
     def test_build_scrapers_returns_six(self):
         agg = JobAggregator(keyword="react")
-        scrapers = agg._build_scrapers()
+        scrapers = agg._build_scrapers("India")
         assert len(scrapers) == 6
         sources = {s.source_name for s in scrapers}
         assert sources == {"LinkedIn", "Unstop", "Himalayas", "Jobicy", "Remotive", "Arbeitnow"}
@@ -270,8 +270,9 @@ class TestJobAggregator:
 
         # Set keyword to a broad term so all mocked jobs match
         agg = JobAggregator(keyword="developer", location="India")
-        jobs = agg.run()
+        res = agg.run()
+        jobs_list = res.get("jobs", [])
         
-        assert len(jobs) > 0
-        dates = [j["date_posted"] for j in jobs if j["date_posted"]]
+        assert len(jobs_list) > 0
+        dates = [j["date_posted"] for j in jobs_list if j["date_posted"]]
         assert dates == sorted(dates, reverse=True)
