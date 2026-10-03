@@ -369,3 +369,94 @@ class TestResumeRecommendAPI:
             content_type="application/json"
         )
         assert res.status_code == 200
+
+    def test_parse_extracts_education_and_experience(self, flask_client):
+        """Test that education and experience fields are parsed and returned."""
+        text = "Software Engineer with 4 years of experience. B.Tech in Computer Science from IIT Delhi."
+        import docx as python_docx
+        doc = python_docx.Document()
+        doc.add_paragraph(text)
+        buf = io.BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+
+        data = {"resume": (buf, "edu_resume.docx")}
+        res = flask_client.post(
+            "/api/resume/parse",
+            data=data,
+            content_type="multipart/form-data"
+        )
+        assert res.status_code == 200
+        resp = json.loads(res.data)
+        assert "education" in resp
+        assert "experience" in resp
+        assert isinstance(resp["education"], list)
+        assert any("B.Tech" in e or "Computer Science" in e for e in resp["education"])
+        assert "4" in resp["experience"]
+
+    def test_parse_authenticated_user_saved_location(self, flask_client):
+        """Test that logged-in user's saved location preference is returned when resume is parsed."""
+        # 1. Register and login
+        reg_data = {
+            "full_name": "Test Candidate",
+            "email": "candidate_loc@test.com",
+            "password": "password123",
+            "preferred_location": "Hyderabad"
+        }
+        flask_client.post("/api/auth/register", json=reg_data)
+        login_res = flask_client.post("/api/auth/login", json={
+            "email": "candidate_loc@test.com",
+            "password": "password123"
+        })
+        assert login_res.status_code == 200
+
+        # 2. Upload resume
+        text = "Full Stack Engineer with React and Python skills."
+        import docx as python_docx
+        doc = python_docx.Document()
+        doc.add_paragraph(text)
+        buf = io.BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+
+        data = {"resume": (buf, "resume_loc.docx")}
+        res = flask_client.post(
+            "/api/resume/parse",
+            data=data,
+            content_type="multipart/form-data"
+        )
+        assert res.status_code == 200
+        resp = json.loads(res.data)
+        # Should use user's saved location 'Hyderabad'
+        assert resp.get("preferred_location") == "Hyderabad"
+
+    def test_recommend_authenticated_user_updates_preferred_location(self, flask_client):
+        """Test that recommending jobs with a location updates user profile preferred_location."""
+        flask_client.post("/api/auth/register", json={
+            "full_name": "Location Update User",
+            "email": "update_loc@test.com",
+            "password": "password123",
+            "preferred_location": "Delhi"
+        })
+        flask_client.post("/api/auth/login", json={
+            "email": "update_loc@test.com",
+            "password": "password123"
+        })
+
+        # Recommend jobs with new location
+        res = flask_client.post(
+            "/api/resume/recommend",
+            json={
+                "skills": ["Python"],
+                "job_role": "Python Developer",
+                "location": "Pune"
+            }
+        )
+        assert res.status_code == 200
+
+        # Verify profile updated
+        me_res = flask_client.get("/api/auth/me")
+        assert me_res.status_code == 200
+        me_data = json.loads(me_res.data)
+        assert me_data.get("authenticated") is True
+        assert me_data["user"]["preferred_location"] == "Pune"
